@@ -43,13 +43,6 @@ type Session = {
   updatedAt: number;
 };
 
-function getSessions() {
-  return JSON.parse(localStorage.getItem("sessions") || "[]");
-}
-function saveSessions(sessions: Session[]) {
-  localStorage.setItem("sessions", JSON.stringify(sessions));
-}
-
 export default function PlaygroundPage() {
   const [tab, setTab] = useState(0);
   const [chat, setChat] = useState([
@@ -62,7 +55,7 @@ export default function PlaygroundPage() {
   const [jsx, setJsx] = useState(initialJSX);
   const [css, setCss] = useState(initialCSS);
   const chatEndRef = useRef<HTMLDivElement>(null);
-  const { isLoggedIn, user, logout } = useAuth();
+  const { isLoggedIn, user } = useAuth();
   const router = useRouter();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [sessions, setSessions] = useState<Session[]>([]);
