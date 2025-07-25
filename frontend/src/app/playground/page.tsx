@@ -33,10 +33,20 @@ import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
 const initialJSX = `export default function MyComponent() {\n  return <button>Hello World</button>;\n}`;
 const initialCSS = `button {\n  color: white;\n  background: #1976d2;\n  padding: 12px 24px;\n  border-radius: 8px;\n}`;
 
+// Define a Session type for sessions state
+type Session = {
+  _id: string;
+  name: string;
+  chat: { role: string; content: string }[];
+  jsx: string;
+  css: string;
+  updatedAt: number;
+};
+
 function getSessions() {
   return JSON.parse(localStorage.getItem("sessions") || "[]");
 }
-function saveSessions(sessions: any[]) {
+function saveSessions(sessions: Session[]) {
   localStorage.setItem("sessions", JSON.stringify(sessions));
 }
 
@@ -55,7 +65,7 @@ export default function PlaygroundPage() {
   const { isLoggedIn, user, logout } = useAuth();
   const router = useRouter();
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [sessions, setSessions] = useState<Record<string, any>[]>([]);
+  const [sessions, setSessions] = useState<Session[]>([]);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [sessionName, setSessionName] = useState("");
   const [sessionLoading, setSessionLoading] = useState(false);
@@ -125,10 +135,6 @@ export default function PlaygroundPage() {
       },
     },
   ]);
-  const [selectedElementId, setSelectedElementId] = useState<string | null>(
-    null,
-  );
-  const [elementChatInput, setElementChatInput] = useState("");
 
   // Fetch sessions on mount
   useEffect(() => {
@@ -150,7 +156,6 @@ export default function PlaygroundPage() {
       setSessionLoading(false);
     }
     fetchSessions();
-    // eslint-disable-next-line
   }, []);
 
   // Auto-save current session on chat/code/buttonProps change
@@ -289,7 +294,7 @@ export default function PlaygroundPage() {
         code: jsx,
       });
       // Try to extract code and message from LLM response
-      let aiMsg = { role: "ai", content: "" };
+      const aiMsg = { role: "ai", content: "" };
       let newJsx = jsx;
       let newCss = css;
       // Try to parse OpenAI-style response

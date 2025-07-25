@@ -1,7 +1,6 @@
 "use client";
 import HomeIcon from "@mui/icons-material/Home";
 import PlayCircleFilledWhiteIcon from "@mui/icons-material/PlayCircleFilledWhite";
-import LoginIcon from "@mui/icons-material/Login";
 import AdbIcon from "@mui/icons-material/Adb";
 import React from "react";
 import { useAuth } from "./AuthProvider";

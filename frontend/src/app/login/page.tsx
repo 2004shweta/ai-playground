@@ -31,7 +31,7 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (isLoggedIn) router.replace("/playground");
-  }, [isLoggedIn]);
+  }, [isLoggedIn, router]);
 
   useEffect(() => {
     // Check for token in URL (after Google OAuth redirect)
@@ -41,7 +41,7 @@ export default function LoginPage() {
       setToken(token);
       router.replace("/playground");
     }
-  }, []);
+  }, [router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
