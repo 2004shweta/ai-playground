@@ -1,6 +1,9 @@
 import axios from "axios";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+const API_URL =
+  process.env.NEXT_PUBLIC_API_URL ||
+  "https://ai-playground-y7d4.onrender.com" ||
+  "http://localhost:3001";
 
 export function getToken() {
   if (typeof window === "undefined") return null;
