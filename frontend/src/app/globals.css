@@ -1,0 +1,143 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
+
+:root {
+  --background: linear-gradient(135deg, #f8fafc 0%, #e3f0fd 100%);
+  --foreground: #1a2233;
+  --accent: #1976d2;
+  --accent-hover: #1565c0;
+  --error: #e53935;
+  --success: #43a047;
+  --border: #e0e0e0;
+  --radius: 12px;
+  --glass: rgba(255, 255, 255, 0.7);
+  --glass-blur: 12px;
+}
+
+html,
+body {
+  max-width: 100vw;
+  overflow-x: hidden;
+  background: var(--background);
+  min-height: 100vh;
+  scroll-behavior: smooth;
+}
+
+body {
+  color: var(--foreground);
+  font-family: "Inter", Arial, Helvetica, sans-serif;
+  font-size: 18px;
+  line-height: 1.6;
+  background: none;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: "Inter", Arial, Helvetica, sans-serif;
+  font-weight: 800;
+  color: var(--foreground);
+  margin-bottom: 0.5em;
+  letter-spacing: 0.5px;
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: "Inter", Arial, Helvetica, sans-serif;
+  font-size: 1em;
+  border-radius: var(--radius);
+  transition:
+    box-shadow 0.2s,
+    border-color 0.2s,
+    background 0.2s,
+    color 0.2s;
+}
+
+button:focus,
+input:focus,
+select:focus,
+textarea:focus {
+  outline: 2px solid var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-hover);
+}
+
+button:hover,
+a:hover {
+  filter: brightness(1.08);
+  color: var(--accent);
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  background: #e3f0fd;
+}
+::-webkit-scrollbar-thumb {
+  background: #b3c6e6;
+  border-radius: 8px;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
+.spacing-lg {
+  margin-bottom: 2rem;
+}
+.spacing-md {
+  margin-bottom: 1rem;
+}
+.spacing-sm {
+  margin-bottom: 0.5rem;
+}
+
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-32px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(32px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
