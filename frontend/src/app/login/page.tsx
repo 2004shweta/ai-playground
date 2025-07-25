@@ -61,8 +61,14 @@ export default function LoginPage() {
       } else {
         await signup(email, password);
       }
-    } catch (err: any) {
-      setError(err?.response?.data?.error || "Login/signup failed");
+    } catch (err: unknown) {
+      if (err && typeof err === 'object' && 'response' in err && err.response && typeof err.response === 'object' && 'data' in err.response && err.response.data && typeof err.response.data === 'object' && 'error' in err.response.data) {
+        setError((err as any)?.response?.data?.error || "Login/signup failed");
+      } else if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError("Login/signup failed");
+      }
     } finally {
       setLoading(false);
     }

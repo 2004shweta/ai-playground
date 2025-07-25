@@ -35,14 +35,14 @@ export async function apiGet(path: string) {
   return res.data;
 }
 
-export async function apiPost(path: string, data: any) {
+export async function apiPost<T = unknown>(path: string, data: T) {
   const res = await axios.post(`${API_URL}${path}`, data, {
     headers: authHeaders(),
   });
   return res.data;
 }
 
-export async function apiPut(path: string, data: any) {
+export async function apiPut<T = unknown>(path: string, data: T) {
   const res = await axios.put(`${API_URL}${path}`, data, {
     headers: authHeaders(),
   });

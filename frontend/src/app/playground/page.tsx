@@ -14,7 +14,6 @@ import {
   Drawer,
   IconButton,
   ListItemButton,
-  InputAdornment,
   Avatar,
 } from "@mui/material";
 import TextField from "@mui/material/TextField";
@@ -22,21 +21,14 @@ import JSZip from "jszip";
 import { useAuth } from "../../components/AuthProvider";
 import { useRouter } from "next/navigation";
 import MenuIcon from "@mui/icons-material/Menu";
-import AddIcon from "@mui/icons-material/Add";
-import DeleteIcon from "@mui/icons-material/Delete";
+import CloseIcon from "@mui/icons-material/Close";
 import CircularProgress from "@mui/material/CircularProgress";
-import Popover from "@mui/material/Popover";
-import Slider from "@mui/material/Slider";
-import Input from "@mui/material/Input";
-import { apiGet, apiPost, apiPut, apiDelete } from "../../utils/api";
-import { v4 as uuidv4 } from "uuid";
 import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
 import PersonIcon from "@mui/icons-material/Person";
 import SmartToyIcon from "@mui/icons-material/SmartToy";
-import CloseIcon from "@mui/icons-material/Close";
-import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
-import LogoutIcon from "@mui/icons-material/Logout";
 import SendIcon from "@mui/icons-material/Send";
+import { apiGet, apiPost, apiPut, apiDelete } from "../../utils/api";
+import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
 
 const initialJSX = `export default function MyComponent() {\n  return <button>Hello World</button>;\n}`;
 const initialCSS = `button {\n  color: white;\n  background: #1976d2;\n  padding: 12px 24px;\n  border-radius: 8px;\n}`;
@@ -63,13 +55,12 @@ export default function PlaygroundPage() {
   const { isLoggedIn, user, logout } = useAuth();
   const router = useRouter();
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [sessions, setSessions] = useState<any[]>([]);
+  const [sessions, setSessions] = useState<Record<string, any>[]>([]);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [sessionName, setSessionName] = useState("");
   const [sessionLoading, setSessionLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-  const [editorAnchor, setEditorAnchor] = useState<null | HTMLElement>(null);
   // 1. Replace buttonProps with elements state
   type ButtonElement = {
     id: string;
@@ -138,7 +129,6 @@ export default function PlaygroundPage() {
     null,
   );
   const [elementChatInput, setElementChatInput] = useState("");
-  const [elementChatLoading, setElementChatLoading] = useState(false);
 
   // Fetch sessions on mount
   useEffect(() => {
@@ -188,7 +178,7 @@ export default function PlaygroundPage() {
       // The following lines are no longer needed as elements are managed locally
       // uiState: { buttonProps },
     });
-  }, [chat, jsx, css]); // Removed buttonProps from dependency array
+  }, [chat, jsx, css, sessionId, sessionName, sessions]); // Removed buttonProps from dependency array
 
   // 2. Update JSX/CSS generation to loop over elements
   useEffect(() => {
@@ -317,13 +307,20 @@ export default function PlaygroundPage() {
       setChat((prev) => [...prev, aiMsg]);
       setJsx(newJsx);
       setCss(newCss);
-    } catch (err: any) {
+    } catch (err: unknown) {
+      let errorMsg = "AI request failed: ";
+      if (err && typeof err === 'object' && 'response' in err && err.response && typeof err.response === 'object' && 'data' in err.response && err.response.data && typeof err.response.data === 'object' && 'error' in err.response.data) {
+        errorMsg += (err as any)?.response?.data?.error;
+      } else if (err instanceof Error) {
+        errorMsg += err.message;
+      } else {
+        errorMsg += 'Unknown error';
+      }
       setChat((prev) => [
         ...prev,
         {
           role: "ai",
-          content:
-            "AI request failed: " + (err?.response?.data?.error || err.message),
+          content: errorMsg,
         },
       ]);
     }
@@ -351,56 +348,6 @@ export default function PlaygroundPage() {
     a.click();
     URL.revokeObjectURL(url);
   };
-
-  const ELEMENT_TYPES = [{ type: "button", label: "Button" }];
-
-  const handleAddElement = (type: string) => {
-    const newId = uuidv4();
-    let newElement: any;
-    if (type === "button") {
-      newElement = {
-        id: newId,
-        type: "button",
-        props: { text: "New Button" },
-        style: {
-          background: "#1976d2",
-          color: "#fff",
-          padding: 12,
-          radius: 8,
-          fontSize: 16,
-          border: "none",
-          boxShadow: "",
-        },
-      };
-      setElements((prev) => [...prev, newElement]);
-    }
-  };
-
-  async function handleElementChatSend() {
-    if (!selectedElementId || !elementChatInput.trim()) return;
-    setElementChatLoading(true);
-    try {
-      const el = elements.find((e) => e.id === selectedElementId);
-      const res = await apiPost("/ai/element-delta", {
-        prompt: elementChatInput,
-        jsx,
-        css,
-        element: el,
-      });
-      // Expecting response: { element: { ...updatedPropsAndStyle } }
-      if (res && res.element) {
-        setElements((prev) =>
-          prev.map((e) =>
-            e.id === selectedElementId ? { ...e, ...res.element } : e,
-          ),
-        );
-      }
-      setElementChatInput("");
-    } catch (err) {
-      // Optionally show error
-    }
-    setElementChatLoading(false);
-  }
 
   return (
     <Box

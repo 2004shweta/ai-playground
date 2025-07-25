@@ -6,6 +6,7 @@ import AdbIcon from "@mui/icons-material/Adb";
 import React from "react";
 import { useAuth } from "./AuthProvider";
 import LogoutIcon from "@mui/icons-material/Logout";
+import Link from "next/link";
 
 export default function Header() {
   const { isLoggedIn, logout } = useAuth();
@@ -51,7 +52,7 @@ export default function Header() {
         style={{ marginRight: 32, display: "flex", gap: 24 }}
         aria-label="Main navigation"
       >
-        <a
+        <Link
           href="/"
           style={{
             color: "var(--foreground)",
@@ -70,7 +71,7 @@ export default function Header() {
           onMouseOut={(e) => (e.currentTarget.style.background = "transparent")}
         >
           <HomeIcon sx={{ fontSize: 22, color: "var(--accent)" }} /> Home
-        </a>
+        </Link>
         <a
           href="/playground"
           style={{
