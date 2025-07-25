@@ -5,6 +5,8 @@ var logger = require("morgan");
 const mongoose = require("mongoose");
 const redis = require("redis");
 const cors = require("cors");
+const session = require("express-session");
+const passport = require("passport");
 require("dotenv").config();
 
 var indexRouter = require("./routes/index");
@@ -55,6 +57,13 @@ redisClient
   .catch(console.error);
 
 app.set("redisClient", redisClient);
+
+app.use(session({
+  secret: process.env.SESSION_SECRET || "keyboard cat",
+  resave: false,
+  saveUninitialized: false,
+}));
+app.use(passport.initialize());
 
 app.use("/", indexRouter);
 app.use("/users", usersRouter);
