@@ -34,27 +34,63 @@ function authHeaders() {
 }
 
 export async function apiGet(path: string) {
-  const res = await axios.get(`${API_URL}${path}`, { headers: authHeaders() });
-  return res.data;
+  try {
+    const res = await axios.get(`${API_URL}${path}`, { headers: authHeaders() });
+    return res.data;
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response?.status === 401) {
+      // Clear invalid token
+      clearToken();
+      throw new Error('Authentication required');
+    }
+    throw error;
+  }
 }
 
 export async function apiPost<T = unknown>(path: string, data: T) {
-  const res = await axios.post(`${API_URL}${path}`, data, {
-    headers: authHeaders(),
-  });
-  return res.data;
+  try {
+    const res = await axios.post(`${API_URL}${path}`, data, {
+      headers: authHeaders(),
+    });
+    return res.data;
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response?.status === 401) {
+      // Clear invalid token
+      clearToken();
+      throw new Error('Authentication required');
+    }
+    throw error;
+  }
 }
 
 export async function apiPut<T = unknown>(path: string, data: T) {
-  const res = await axios.put(`${API_URL}${path}`, data, {
-    headers: authHeaders(),
-  });
-  return res.data;
+  try {
+    const res = await axios.put(`${API_URL}${path}`, data, {
+      headers: authHeaders(),
+    });
+    return res.data;
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response?.status === 401) {
+      // Clear invalid token
+      clearToken();
+      throw new Error('Authentication required');
+    }
+    throw error;
+  }
 }
 
 export async function apiDelete(path: string) {
-  const res = await axios.delete(`${API_URL}${path}`, {
-    headers: authHeaders(),
-  });
-  return res.data;
+  try {
+    const res = await axios.delete(`${API_URL}${path}`, {
+      headers: authHeaders(),
+    });
+    return res.data;
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response?.status === 401) {
+      // Clear invalid token
+      clearToken();
+      throw new Error('Authentication required');
+    }
+    throw error;
+  }
 }

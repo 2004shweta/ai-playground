@@ -34,7 +34,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const token = getToken();
-    setUser(parseUserFromToken(token));
+    if (token) {
+      const user = parseUserFromToken(token);
+      if (user) {
+        setUser(user);
+      } else {
+        // Invalid token, clear it
+        clearToken();
+      }
+    }
   }, []);
 
   const login = async (email: string, password: string) => {

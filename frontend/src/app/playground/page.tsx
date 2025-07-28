@@ -132,6 +132,7 @@ export default function PlaygroundPage() {
   // Fetch sessions on mount
   useEffect(() => {
     async function fetchSessions() {
+      if (!isLoggedIn) return; // Don't fetch if not logged in
       setSessionLoading(true);
       try {
         const data = await apiGet("/sessions");
@@ -149,11 +150,11 @@ export default function PlaygroundPage() {
       setSessionLoading(false);
     }
     fetchSessions();
-  }, []);
+  }, [isLoggedIn]); // Add isLoggedIn as dependency
 
   // Auto-save current session on chat/code/buttonProps change
   useEffect(() => {
-    if (!sessionId) return;
+    if (!sessionId || !isLoggedIn) return;
     const idx = sessions.findIndex((s) => s._id === sessionId);
     if (idx === -1) return;
     const updated = [...sessions];
@@ -176,7 +177,7 @@ export default function PlaygroundPage() {
       // The following lines are no longer needed as elements are managed locally
       // uiState: { buttonProps },
     });
-  }, [chat, jsx, css, sessionId, sessionName, sessions]); // Removed buttonProps from dependency array
+  }, [chat, jsx, css, sessionId, sessionName, sessions, isLoggedIn]); // Added isLoggedIn to dependency array
 
   // 2. Update JSX/CSS generation to loop over elements
   useEffect(() => {
@@ -206,6 +207,7 @@ export default function PlaygroundPage() {
 
   // Create new session
   const handleNewSession = async () => {
+    if (!isLoggedIn) return; // Don't create session if not logged in
     setSessionLoading(true);
     const name = `Session ${sessions.length + 1}`;
     const newSession = await apiPost("/sessions", {
@@ -237,6 +239,7 @@ export default function PlaygroundPage() {
 
   // Select session
   const handleSelectSession = async (id: string) => {
+    if (!isLoggedIn) return; // Don't select session if not logged in
     setSessionLoading(true);
     const s = await apiGet(`/sessions/${id}`);
     setSessionId(s._id);
@@ -252,6 +255,7 @@ export default function PlaygroundPage() {
 
   // Delete session
   const handleDeleteSession = async (id: string) => {
+    if (!isLoggedIn) return; // Don't delete session if not logged in
     setSessionLoading(true);
     await apiDelete(`/sessions/${id}`);
     const data = await apiGet("/sessions");
@@ -274,7 +278,7 @@ export default function PlaygroundPage() {
   }, [chat, loading]);
 
   const handleSend = async () => {
-    if (!input.trim() || loading) return;
+    if (!input.trim() || loading || !isLoggedIn) return;
     const userMsg = { role: "user", content: input };
     setChat((prev) => [...prev, userMsg]);
     setInput("");
