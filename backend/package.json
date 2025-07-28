@@ -11,7 +11,8 @@
     "debug-env": "node debug-env.js",
     "analyze": "node analyze-issue.js",
     "quick-test": "node quick-test.js",
-    "health-check": "node health-check.js"
+    "health-check": "node health-check.js",
+    "render-fix": "node render-fix.js"
   },
   "dependencies": {
     "axios": "^1.11.0",

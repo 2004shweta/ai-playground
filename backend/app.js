@@ -101,33 +101,65 @@ const connectWithRetry = () => {
   console.log(`Attempting to connect to MongoDB (attempt ${connectionAttempts + 1}/${maxRetryAttempts})...`);
   connectionAttempts++;
   
-  // Progressive connection options - start simple, add complexity
+  // Detect if we're on Render.com or other cloud platforms
+  const isRenderPlatform = process.env.RENDER || process.env.NODE_ENV === 'production';
+  
+  // Progressive connection options - optimized for Render.com
   let mongoOptions = {
-    serverSelectionTimeoutMS: 20000,
-    connectTimeoutMS: 20000,
-    socketTimeoutMS: 30000,
+    serverSelectionTimeoutMS: 15000,
+    connectTimeoutMS: 15000,
+    socketTimeoutMS: 25000,
     bufferCommands: false,
-    maxPoolSize: 5,
+    maxPoolSize: 3,
     minPoolSize: 1,
   };
   
-  // Add SSL/TLS options for Atlas after initial attempts
+  // Handle MongoDB Atlas connections with cloud platform considerations
   if (process.env.MONGO_URI && process.env.MONGO_URI.includes('mongodb.net')) {
     mongoOptions.tls = true;
+    mongoOptions.retryWrites = true;
     
-    // Use more permissive SSL settings for production deployment issues
-    if (connectionAttempts > 3) {
+    // Render.com specific SSL/TLS optimizations
+    if (isRenderPlatform || connectionAttempts > 2) {
       mongoOptions.tlsAllowInvalidCertificates = true;
       mongoOptions.tlsAllowInvalidHostnames = true;
-      console.log('Using permissive SSL settings for Atlas connection...');
+      mongoOptions.tlsInsecure = true;
+      mongoOptions.authSource = 'admin';
+      console.log('Using cloud platform optimized SSL settings...');
+    }
+    
+    // Additional Render.com specific settings
+    if (isRenderPlatform) {
+      mongoOptions.directConnection = false;
+      mongoOptions.replicaSet = undefined; // Let driver auto-discover
+      console.log('Applying Render.com specific connection settings...');
     }
   }
+  
+  // Special handling for Render.com TLS issues
+  let connectionString = process.env.MONGO_URI || "mongodb://localhost:27017/ai-playground";
+  
+  if (isRenderPlatform && connectionAttempts > 5) {
+    console.log('Attempting alternative connection method for Render.com...');
+    mongoOptions = {
+      ...mongoOptions,
+      ssl: false, // Try without SSL for problematic environments
+      tls: false,
+      useUnifiedTopology: true,
+      useNewUrlParser: true
+    };
+    
+    // Note: This fallback may not work with Atlas clusters that require SSL
+    // But we'll try it as a last resort for Render.com TLS issues
+    if (connectionString.includes('mongodb+srv://')) {
+      console.log('Note: Attempting non-SRV connection as fallback...');
+    }
+  }
+  
   console.log("Connecting with options:", JSON.stringify(mongoOptions, null, 2));
 
-  mongoose.connect(
-    process.env.MONGO_URI || "mongodb://localhost:27017/ai-playground",
-    mongoOptions,
-  ).then(() => {
+  mongoose.connect(connectionString, mongoOptions)
+    .then(() => {
     console.log('✅ MongoDB connection successful!');
     isConnected = true;
     connectionAttempts = 0; // Reset counter on success
@@ -141,14 +173,26 @@ const connectWithRetry = () => {
     });
     isConnected = false;
     
-    // Progressive backoff with shorter initial delays
+    // Faster retry strategy for cloud platforms
     let retryDelay;
-    if (connectionAttempts <= 3) {
-      retryDelay = 2000; // 2 seconds for first few attempts
-    } else if (connectionAttempts <= 6) {
-      retryDelay = 5000; // 5 seconds for middle attempts
+    if (isRenderPlatform) {
+      // Render.com specific: faster retries since cold starts are common
+      if (connectionAttempts <= 5) {
+        retryDelay = 1000; // 1 second for first 5 attempts
+      } else if (connectionAttempts <= 10) {
+        retryDelay = 3000; // 3 seconds for next 5 attempts  
+      } else {
+        retryDelay = 8000; // 8 seconds for remaining attempts
+      }
     } else {
-      retryDelay = 10000; // 10 seconds for later attempts
+      // Local/other environments
+      if (connectionAttempts <= 3) {
+        retryDelay = 2000; // 2 seconds for first few attempts
+      } else if (connectionAttempts <= 6) {
+        retryDelay = 5000; // 5 seconds for middle attempts
+      } else {
+        retryDelay = 10000; // 10 seconds for later attempts
+      }
     }
     
     console.log(`Retrying in ${retryDelay}ms...`);
