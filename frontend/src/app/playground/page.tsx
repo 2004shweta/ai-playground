@@ -937,14 +937,16 @@ export default function PlaygroundPage() {
               <pre
                 style={{
                   margin: 0,
-                  fontFamily: "'Fira Code', 'Monaco', 'Menlo', monospace",
+                  fontFamily: "'JetBrains Mono', 'Fira Code', 'Monaco', 'Menlo', monospace",
                   background: "none",
                   color: "inherit",
-                  fontSize: "13px",
-                  lineHeight: "1.5",
+                  fontSize: "14px",
+                  lineHeight: "1.7",
                   whiteSpace: "pre-wrap",
                   wordBreak: "break-word",
-                  overflowWrap: "break-word"
+                  overflowWrap: "break-word",
+                  position: "relative",
+                  zIndex: 1
                 }}
               >
                 {jsx}

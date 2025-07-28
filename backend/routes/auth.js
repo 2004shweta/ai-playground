@@ -25,17 +25,21 @@ router.post("/signup", async (req, res) => {
   }
   
   try {
-    // Check if database is ready
-    if (mongoose.connection.readyState !== 1) {
-      console.log("Database not ready, state:", mongoose.connection.readyState);
+    // Check if database is ready with more detailed status
+    const dbState = mongoose.connection.readyState;
+    console.log(`Database state check: ${dbState} (0=disconnected, 1=connected, 2=connecting, 3=disconnecting)`);
+    
+    if (dbState !== 1) {
+      console.log("Database not ready for signup operation");
       return res.status(503).json({ 
-        error: "Database connection not ready. Please try again in a few moments.",
-        retryAfter: 5
+        error: "Database connection error. Please try again in 5 seconds.",
+        retryAfter: 5,
+        dbState: dbState
       });
     }
     
     console.log("Checking for existing user...");
-    const existing = await User.findOne({ email }).maxTimeMS(5000);
+    const existing = await User.findOne({ email }).maxTimeMS(10000); // Increased timeout
     if (existing) {
       console.log("User already exists:", email);
       return res.status(409).json({ error: "Email already registered" });
@@ -48,19 +52,25 @@ router.post("/signup", async (req, res) => {
     const user = await User.create({ email, password: hash });
     console.log("User created successfully:", user._id);
     
-    res.json({ success: true });
+    res.json({ success: true, message: "Account created successfully" });
   } catch (err) {
     console.error("Signup error:", err);
     console.error("Error details:", {
       name: err.name,
       message: err.message,
       code: err.code,
-      stack: err.stack
+      stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
     });
     
-    if (err.name === 'MongoNetworkError' || err.name === 'MongoServerSelectionError' || err.message.includes('buffering timed out')) {
+    // Handle specific MongoDB errors
+    if (err.name === 'MongoNetworkError' || 
+        err.name === 'MongoServerSelectionError' || 
+        err.name === 'MongoTimeoutError' ||
+        err.message.includes('buffering timed out') ||
+        err.message.includes('connection') ||
+        err.code === 'ENOTFOUND') {
       return res.status(503).json({ 
-        error: "Database connection error. Please try again in a few moments.",
+        error: "Database connection error. Please try again in 5 seconds.",
         retryAfter: 5
       });
     }
@@ -73,7 +83,10 @@ router.post("/signup", async (req, res) => {
       return res.status(400).json({ error: "Validation error: " + err.message });
     }
     
-    res.status(500).json({ error: "Server error: " + err.message });
+    res.status(500).json({ 
+      error: "Server error during signup. Please try again.",
+      details: process.env.NODE_ENV === 'development' ? err.message : undefined
+    });
   }
 });
 
@@ -92,17 +105,21 @@ router.post("/login", async (req, res) => {
   }
   
   try {
-    // Check if database is ready
-    if (mongoose.connection.readyState !== 1) {
-      console.log("Database not ready, state:", mongoose.connection.readyState);
+    // Check if database is ready with more detailed status
+    const dbState = mongoose.connection.readyState;
+    console.log(`Database state check: ${dbState} (0=disconnected, 1=connected, 2=connecting, 3=disconnecting)`);
+    
+    if (dbState !== 1) {
+      console.log("Database not ready for login operation");
       return res.status(503).json({ 
-        error: "Database connection not ready. Please try again in a few moments.",
-        retryAfter: 5
+        error: "Database connection error. Please try again in 5 seconds.",
+        retryAfter: 5,
+        dbState: dbState
       });
     }
     
     console.log("Looking up user...");
-    const user = await User.findOne({ email }).maxTimeMS(5000);
+    const user = await User.findOne({ email }).maxTimeMS(10000); // Increased timeout
     if (!user) {
       console.log("User not found:", email);
       return res.status(401).json({ error: "Invalid credentials" });
@@ -135,21 +152,30 @@ router.post("/login", async (req, res) => {
       name: err.name,
       message: err.message,
       code: err.code,
-      stack: err.stack
+      stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
     });
     
-    if (err.name === 'MongoNetworkError' || err.name === 'MongoServerSelectionError' || err.message.includes('buffering timed out')) {
+    // Handle specific MongoDB errors
+    if (err.name === 'MongoNetworkError' || 
+        err.name === 'MongoServerSelectionError' || 
+        err.name === 'MongoTimeoutError' ||
+        err.message.includes('buffering timed out') ||
+        err.message.includes('connection') ||
+        err.code === 'ENOTFOUND') {
       return res.status(503).json({ 
-        error: "Database connection error. Please try again in a few moments.",
+        error: "Database connection error. Please try again in 5 seconds.",
         retryAfter: 5
       });
     }
     
     if (err.name === 'JsonWebTokenError') {
-      return res.status(500).json({ error: "Token generation error" });
+      return res.status(500).json({ error: "Authentication configuration error" });
     }
     
-    res.status(500).json({ error: "Server error: " + err.message });
+    res.status(500).json({ 
+      error: "Server error during login. Please try again.",
+      details: process.env.NODE_ENV === 'development' ? err.message : undefined
+    });
   }
 });
 

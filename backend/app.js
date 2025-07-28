@@ -49,94 +49,109 @@ app.use((req, res, next) => {
   next();
 });
 
-// Database connection check middleware
+// Add health check endpoint before database middleware
+app.get('/health', (req, res) => {
+  const dbState = mongoose.connection.readyState;
+  const dbStateNames = ['disconnected', 'connected', 'connecting', 'disconnecting'];
+  
+  res.json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    database: {
+      state: dbStateNames[dbState] || 'unknown',
+      connected: dbState === 1
+    },
+    uptime: process.uptime()
+  });
+});
+
+// Database connection check middleware (more lenient)
 app.use((req, res, next) => {
-  // Skip database check for health and test endpoints
-  if (req.path === '/health' || req.path === '/test' || req.path === '/') {
+  // Skip database check for health and static endpoints
+  if (req.path === '/health' || req.path === '/test' || req.path === '/' || req.path.startsWith('/public')) {
     return next();
   }
   
-  // Check if MongoDB is connected
-  if (!isConnected && mongoose.connection.readyState !== 1) {
-    console.log(`Database not ready. State: ${mongoose.connection.readyState}`);
+  // Only check for critical database operations
+  const dbRequired = req.path.includes('/auth') || req.path.includes('/sessions') || req.path.includes('/users');
+  
+  if (dbRequired && mongoose.connection.readyState !== 1) {
+    console.log(`Database not ready for ${req.path}. State: ${mongoose.connection.readyState}`);
     return res.status(503).json({ 
-      error: "Database connection not ready. Please try again in a few moments.",
-      retryAfter: 5
+      error: "Database connection error. Please try again in 5 seconds.",
+      retryAfter: 5,
+      dbState: mongoose.connection.readyState
     });
   }
   
   next();
 });
 
-// MongoDB connection with retry logic
+// MongoDB connection with improved retry logic
 let isConnected = false;
 let connectionAttempts = 0;
-const maxRetryAttempts = 10;
+const maxRetryAttempts = 15; // Increased max attempts
 
 const connectWithRetry = () => {
   if (connectionAttempts >= maxRetryAttempts) {
-    console.error(`Failed to connect to MongoDB after ${maxRetryAttempts} attempts. Giving up.`);
+    console.error(`Failed to connect to MongoDB after ${maxRetryAttempts} attempts. Continuing without database...`);
     return;
   }
 
   console.log(`Attempting to connect to MongoDB (attempt ${connectionAttempts + 1}/${maxRetryAttempts})...`);
   connectionAttempts++;
   
-  // Enhanced connection options to handle SSL/TLS issues
-  const mongoOptions = {
-    // Connection timeout settings
-    serverSelectionTimeoutMS: 30000, // Increased timeout
-    connectTimeoutMS: 30000,
-    socketTimeoutMS: 45000,
-    
-    // Buffer settings (corrected option name)
+  // Progressive connection options - start simple, add complexity
+  let mongoOptions = {
+    serverSelectionTimeoutMS: 20000,
+    connectTimeoutMS: 20000,
+    socketTimeoutMS: 30000,
     bufferCommands: false,
-    
-    // Retry settings
-    retryWrites: true,
-    retryReads: true,
-    maxPoolSize: 10,
+    maxPoolSize: 5,
     minPoolSize: 1,
-    
-    // SSL/TLS settings for Atlas connections
-    tls: true,
-    tlsInsecure: false, // Keep secure but try different approaches
-    
-    // Additional stability options
-    heartbeatFrequencyMS: 10000,
-    serverMonitoringMode: 'auto'
   };
-
-  // For production environments, try relaxed TLS settings if standard fails
-  if (process.env.NODE_ENV === 'production' || connectionAttempts > 3) {
-    mongoOptions.tlsAllowInvalidCertificates = true;
-    mongoOptions.tlsAllowInvalidHostnames = true;
-    console.log('Using relaxed TLS settings due to connection issues...');
+  
+  // Add SSL/TLS options for Atlas after initial attempts
+  if (process.env.MONGO_URI && process.env.MONGO_URI.includes('mongodb.net')) {
+    mongoOptions.tls = true;
+    
+    // Use more permissive SSL settings for production deployment issues
+    if (connectionAttempts > 3) {
+      mongoOptions.tlsAllowInvalidCertificates = true;
+      mongoOptions.tlsAllowInvalidHostnames = true;
+      console.log('Using permissive SSL settings for Atlas connection...');
+    }
   }
-
-  console.log("Connection options:", mongoOptions);
-  console.log("MONGO_URI type:", typeof process.env.MONGO_URI);
-  console.log("MONGO_URI length:", process.env.MONGO_URI ? process.env.MONGO_URI.length : 0);
+  console.log("Connecting with options:", JSON.stringify(mongoOptions, null, 2));
 
   mongoose.connect(
     process.env.MONGO_URI || "mongodb://localhost:27017/ai-playground",
     mongoOptions,
   ).then(() => {
-    console.log('MongoDB connection successful!');
+    console.log('✅ MongoDB connection successful!');
     isConnected = true;
     connectionAttempts = 0; // Reset counter on success
   }).catch(err => {
-    console.error('MongoDB connection failed, retrying in 10 seconds...', err.message);
+    console.error(`❌ MongoDB connection failed (attempt ${connectionAttempts}):`, err.message);
     console.error('Connection error details:', {
       name: err.name,
       code: err.code,
-      reason: err.reason,
+      reason: err.reason?.message || err.reason,
       codeName: err.codeName
     });
     isConnected = false;
     
-    // Exponential backoff: wait longer between retries
-    const retryDelay = Math.min(10000 * Math.pow(1.5, connectionAttempts - 1), 60000);
+    // Progressive backoff with shorter initial delays
+    let retryDelay;
+    if (connectionAttempts <= 3) {
+      retryDelay = 2000; // 2 seconds for first few attempts
+    } else if (connectionAttempts <= 6) {
+      retryDelay = 5000; // 5 seconds for middle attempts
+    } else {
+      retryDelay = 10000; // 10 seconds for later attempts
+    }
+    
+    console.log(`Retrying in ${retryDelay}ms...`);
     setTimeout(connectWithRetry, retryDelay);
   });
 };
@@ -161,40 +176,60 @@ mongoose.connection.on("disconnected", () => {
   isConnected = false;
 });
 
-// Redis connection with retry logic
-console.log("Using Redis URL:", process.env.REDIS_URL);
-const redisClient = redis.createClient({
-  url: process.env.REDIS_URL,
-  socket: {
-    tls: process.env.REDIS_URL && process.env.REDIS_URL.startsWith("rediss://"),
-    connectTimeout: 10000,
-    lazyConnect: true,
-  },
-  retry_strategy: function(options) {
-    if (options.error && options.error.code === 'ECONNREFUSED') {
-      console.error('Redis server refused connection');
-      return new Error('Redis server refused connection');
+// Redis connection with improved error handling
+console.log("Redis URL configured:", process.env.REDIS_URL ? "YES" : "NO");
+
+let redisClient;
+try {
+  redisClient = redis.createClient({
+    url: process.env.REDIS_URL,
+    socket: {
+      tls: process.env.REDIS_URL && process.env.REDIS_URL.startsWith("rediss://"),
+      connectTimeout: 15000,
+      lazyConnect: true,
+      reconnectStrategy: (retries) => {
+        if (retries > 5) {
+          console.log("Redis max reconnection attempts reached");
+          return false; // Stop trying to reconnect
+        }
+        return Math.min(retries * 50, 500);
+      }
     }
-    if (options.total_retry_time > 1000 * 60 * 60) {
-      console.error('Redis retry time exhausted');
-      return new Error('Retry time exhausted');
-    }
-    if (options.attempt > 10) {
-      console.error('Redis max retry attempts reached');
-      return undefined;
-    }
-    return Math.min(options.attempt * 100, 3000);
-  }
-});
+  });
+
+  redisClient.on('error', (err) => {
+    console.log('Redis Client Error (non-fatal):', err.message);
+  });
+
+  redisClient.on('connect', () => {
+    console.log('✅ Redis connected successfully');
+  });
+
+  redisClient.on('ready', () => {
+    console.log('✅ Redis client ready');
+  });
+
+  redisClient.on('end', () => {
+    console.log('Redis connection ended');
+  });
+
+} catch (error) {
+  console.error("Redis client creation failed:", error.message);
+  redisClient = null;
+}
 
 const connectRedis = async () => {
+  if (!redisClient || !process.env.REDIS_URL) {
+    console.log("Redis not configured or client not available, skipping...");
+    return;
+  }
+  
   try {
     await redisClient.connect();
-    console.log("Redis connected successfully");
+    console.log("✅ Redis connected successfully");
   } catch (error) {
-    console.error("Redis connection failed:", error.message);
-    // Retry Redis connection after 5 seconds
-    setTimeout(connectRedis, 5000);
+    console.error("❌ Redis connection failed (non-fatal):", error.message);
+    // Don't retry aggressively - Redis is optional for basic functionality
   }
 };
 
