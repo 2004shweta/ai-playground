@@ -67,28 +67,26 @@ app.use((req, res, next) => {
 
 // MongoDB connection with retry logic
 let isConnected = false;
+let connectionAttempts = 0;
 
 const connectWithRetry = () => {
-  console.log('Attempting to connect to MongoDB...');
+  console.log(`Attempting to connect to MongoDB (attempt ${connectionAttempts + 1})...`);
+  connectionAttempts++;
+  
+  // Use minimal options to avoid compatibility issues
   const mongoOptions = {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-    retryWrites: true,
-    w: 'majority',
-    serverSelectionTimeoutMS: 30000, // Increased timeout
+    serverSelectionTimeoutMS: 30000,
     socketTimeoutMS: 45000,
-    maxPoolSize: 10,
-    minPoolSize: 1,
-    bufferCommands: false, // Disable buffering to prevent timeout issues
-    bufferMaxEntries: 0,
   };
 
-  // Add SSL options only if connecting to MongoDB Atlas (cloud)
-  if (process.env.MONGO_URI && process.env.MONGO_URI.includes('mongodb.net')) {
-    mongoOptions.ssl = true;
-    mongoOptions.sslValidate = false;
+  // Only add TLS options for Atlas connections on first few attempts
+  if (process.env.MONGO_URI && process.env.MONGO_URI.includes('mongodb.net') && connectionAttempts <= 3) {
+    console.log('Detected MongoDB Atlas connection, adding TLS options');
+    mongoOptions.tls = true;
     mongoOptions.tlsAllowInvalidCertificates = true;
     mongoOptions.tlsAllowInvalidHostnames = true;
+  } else if (process.env.MONGO_URI && process.env.MONGO_URI.includes('mongodb.net')) {
+    console.log('TLS options failed, trying without TLS options');
   }
 
   console.log("Connection options:", mongoOptions);
@@ -99,6 +97,7 @@ const connectWithRetry = () => {
   ).then(() => {
     console.log('MongoDB connection successful!');
     isConnected = true;
+    connectionAttempts = 0; // Reset counter on success
   }).catch(err => {
     console.error('MongoDB connection failed, retrying in 5 seconds...', err.message);
     console.error('Connection error details:', {

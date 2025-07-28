@@ -7,20 +7,14 @@ console.log("MONGO_URI:", process.env.MONGO_URI ? "Set" : "Not set");
 const testConnection = async () => {
   try {
     const mongoOptions = {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-      retryWrites: true,
-      w: 'majority',
       serverSelectionTimeoutMS: 10000,
       socketTimeoutMS: 45000,
-      maxPoolSize: 10,
-      minPoolSize: 1,
     };
 
-    // Add SSL options only if connecting to MongoDB Atlas (cloud)
+    // Add TLS options only if connecting to MongoDB Atlas (cloud)
     if (process.env.MONGO_URI && process.env.MONGO_URI.includes('mongodb.net')) {
-      mongoOptions.ssl = true;
-      mongoOptions.sslValidate = false;
+      console.log('Detected MongoDB Atlas connection, adding TLS options');
+      mongoOptions.tls = true;
       mongoOptions.tlsAllowInvalidCertificates = true;
       mongoOptions.tlsAllowInvalidHostnames = true;
     }
