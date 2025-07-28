@@ -1,13 +1,13 @@
-# Google OAuth Setup
+# Authentication Setup
 
-To enable Google login/signup, add the following to your backend/.env file:
+This backend supports email/password authentication only.
+
+To set up the backend, add the following to your backend/.env file:
 
 ```
-GOOGLE_CLIENT_ID=your-google-client-id
-GOOGLE_CLIENT_SECRET=your-google-client-secret
-GOOGLE_CALLBACK_URL=http://localhost:3001/auth/google/callback
-FRONTEND_URL=http://localhost:3000
-SESSION_SECRET=your-session-secret
+JWT_SECRET=your-jwt-secret-key
+MONGO_URI=your-mongodb-connection-string
+REDIS_URL=your-redis-connection-url
 ```
 
-Replace the values with your credentials from the Google Cloud Console. 
+Replace the values with your actual credentials. 

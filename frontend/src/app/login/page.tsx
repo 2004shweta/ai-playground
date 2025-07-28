@@ -11,13 +11,10 @@ import {
 } from "@mui/material";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../../components/AuthProvider";
-import Image from "next/image";
-import Divider from "@mui/material/Divider";
 import EmailIcon from "@mui/icons-material/Email";
 import LockIcon from "@mui/icons-material/Lock";
 import AdbIcon from "@mui/icons-material/Adb";
 import { useEffect } from "react";
-import { setToken } from "../../utils/api";
 
 export default function LoginPage() {
   const [mode, setMode] = useState<"login" | "signup">("login");
@@ -32,16 +29,6 @@ export default function LoginPage() {
   useEffect(() => {
     if (isLoggedIn) router.replace("/playground");
   }, [isLoggedIn, router]);
-
-  useEffect(() => {
-    // Check for token in URL (after Google OAuth redirect)
-    const url = new URL(window.location.href);
-    const token = url.searchParams.get("token");
-    if (token) {
-      setToken(token);
-      router.replace("/playground");
-    }
-  }, [router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -72,12 +59,6 @@ export default function LoginPage() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleGoogleLogin = () => {
-    window.location.href = process.env.NEXT_PUBLIC_API_URL
-      ? `${process.env.NEXT_PUBLIC_API_URL}/auth/google`
-      : "http://localhost:3001/auth/google";
   };
 
   return (
@@ -300,45 +281,6 @@ export default function LoginPage() {
               : mode === "login"
                 ? "Login"
                 : "Sign Up"}
-          </Button>
-          <Divider sx={{ my: 3, color: "#e0e0e0", fontWeight: 600 }}>
-            or
-          </Divider>
-          <Button
-            variant="outlined"
-            color="primary"
-            fullWidth
-            sx={{
-              borderRadius: 2,
-              fontWeight: 600,
-              fontSize: 16,
-              py: 1.2,
-              px: 0,
-              borderColor: "var(--accent)",
-              color: "var(--accent)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              minWidth: 0,
-              width: '100%',
-              height: 48,
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-              "&:hover": {
-                background: "#e3f0fd",
-                borderColor: "var(--accent-hover)",
-              },
-              textTransform: "none",
-              letterSpacing: 0.5,
-            }}
-            onClick={handleGoogleLogin}
-            disabled={loading}
-          >
-            <Image src="/google.svg" alt="Google" width={24} height={24} style={{ marginRight: 12, flexShrink: 0 }} />
-            <span style={{ flex: 1, textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              Continue with Google
-            </span>
           </Button>
         </Box>
       </Paper>
