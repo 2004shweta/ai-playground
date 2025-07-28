@@ -46,7 +46,28 @@ app.use((req, res, next) => {
   next();
 });
 
+// Database connection check middleware
+app.use((req, res, next) => {
+  // Skip database check for health and test endpoints
+  if (req.path === '/health' || req.path === '/test' || req.path === '/') {
+    return next();
+  }
+  
+  // Check if MongoDB is connected
+  if (!isConnected && mongoose.connection.readyState !== 1) {
+    console.log(`Database not ready. State: ${mongoose.connection.readyState}`);
+    return res.status(503).json({ 
+      error: "Database connection not ready. Please try again in a few moments.",
+      retryAfter: 5
+    });
+  }
+  
+  next();
+});
+
 // MongoDB connection with retry logic
+let isConnected = false;
+
 const connectWithRetry = () => {
   console.log('Attempting to connect to MongoDB...');
   const mongoOptions = {
@@ -54,10 +75,12 @@ const connectWithRetry = () => {
     useUnifiedTopology: true,
     retryWrites: true,
     w: 'majority',
-    serverSelectionTimeoutMS: 10000,
+    serverSelectionTimeoutMS: 30000, // Increased timeout
     socketTimeoutMS: 45000,
     maxPoolSize: 10,
     minPoolSize: 1,
+    bufferCommands: false, // Disable buffering to prevent timeout issues
+    bufferMaxEntries: 0,
   };
 
   // Add SSL options only if connecting to MongoDB Atlas (cloud)
@@ -68,16 +91,22 @@ const connectWithRetry = () => {
     mongoOptions.tlsAllowInvalidHostnames = true;
   }
 
+  console.log("Connection options:", mongoOptions);
+
   mongoose.connect(
     process.env.MONGO_URI || "mongodb://localhost:27017/ai-playground",
     mongoOptions,
-  ).catch(err => {
+  ).then(() => {
+    console.log('MongoDB connection successful!');
+    isConnected = true;
+  }).catch(err => {
     console.error('MongoDB connection failed, retrying in 5 seconds...', err.message);
     console.error('Connection error details:', {
       name: err.name,
       code: err.code,
       reason: err.reason
     });
+    isConnected = false;
     setTimeout(connectWithRetry, 5000);
   });
 };
@@ -85,6 +114,7 @@ const connectWithRetry = () => {
 connectWithRetry();
 mongoose.connection.on("connected", () => {
   console.log("MongoDB connected successfully");
+  isConnected = true;
 });
 mongoose.connection.on("error", (err) => {
   console.error("MongoDB connection error:", err);
@@ -94,9 +124,11 @@ mongoose.connection.on("error", (err) => {
     code: err.code,
     reason: err.reason
   });
+  isConnected = false;
 });
 mongoose.connection.on("disconnected", () => {
   console.log("MongoDB disconnected");
+  isConnected = false;
 });
 
 // Redis connection with retry logic

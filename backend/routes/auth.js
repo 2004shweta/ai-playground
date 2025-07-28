@@ -1,5 +1,6 @@
 const express = require("express");
 const router = express.Router();
+const mongoose = require("mongoose");
 const User = require("../models/User");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
@@ -24,8 +25,17 @@ router.post("/signup", async (req, res) => {
   }
   
   try {
+    // Check if database is ready
+    if (mongoose.connection.readyState !== 1) {
+      console.log("Database not ready, state:", mongoose.connection.readyState);
+      return res.status(503).json({ 
+        error: "Database connection not ready. Please try again in a few moments.",
+        retryAfter: 5
+      });
+    }
+    
     console.log("Checking for existing user...");
-    const existing = await User.findOne({ email });
+    const existing = await User.findOne({ email }).maxTimeMS(5000);
     if (existing) {
       console.log("User already exists:", email);
       return res.status(409).json({ error: "Email already registered" });
@@ -48,8 +58,11 @@ router.post("/signup", async (req, res) => {
       stack: err.stack
     });
     
-    if (err.name === 'MongoNetworkError' || err.name === 'MongoServerSelectionError') {
-      return res.status(503).json({ error: "Database connection error. Please try again." });
+    if (err.name === 'MongoNetworkError' || err.name === 'MongoServerSelectionError' || err.message.includes('buffering timed out')) {
+      return res.status(503).json({ 
+        error: "Database connection error. Please try again in a few moments.",
+        retryAfter: 5
+      });
     }
     
     if (err.code === 11000) {
@@ -79,8 +92,17 @@ router.post("/login", async (req, res) => {
   }
   
   try {
+    // Check if database is ready
+    if (mongoose.connection.readyState !== 1) {
+      console.log("Database not ready, state:", mongoose.connection.readyState);
+      return res.status(503).json({ 
+        error: "Database connection not ready. Please try again in a few moments.",
+        retryAfter: 5
+      });
+    }
+    
     console.log("Looking up user...");
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email }).maxTimeMS(5000);
     if (!user) {
       console.log("User not found:", email);
       return res.status(401).json({ error: "Invalid credentials" });
@@ -116,8 +138,11 @@ router.post("/login", async (req, res) => {
       stack: err.stack
     });
     
-    if (err.name === 'MongoNetworkError' || err.name === 'MongoServerSelectionError') {
-      return res.status(503).json({ error: "Database connection error. Please try again." });
+    if (err.name === 'MongoNetworkError' || err.name === 'MongoServerSelectionError' || err.message.includes('buffering timed out')) {
+      return res.status(503).json({ 
+        error: "Database connection error. Please try again in a few moments.",
+        retryAfter: 5
+      });
     }
     
     if (err.name === 'JsonWebTokenError') {

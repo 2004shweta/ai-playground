@@ -24,7 +24,8 @@ export async function signup(email: string, password: string) {
     return res.data;
   } catch (error) {
     if (axios.isAxiosError(error) && error.response?.status === 503) {
-      throw new Error('Database connection error. Please try again in a few moments.');
+      const retryAfter = error.response?.data?.retryAfter || 5;
+      throw new Error(`Database connection error. Please try again in ${retryAfter} seconds.`);
     }
     throw error;
   }
@@ -36,7 +37,8 @@ export async function login(email: string, password: string) {
     return res.data;
   } catch (error) {
     if (axios.isAxiosError(error) && error.response?.status === 503) {
-      throw new Error('Database connection error. Please try again in a few moments.');
+      const retryAfter = error.response?.data?.retryAfter || 5;
+      throw new Error(`Database connection error. Please try again in ${retryAfter} seconds.`);
     }
     throw error;
   }
@@ -57,6 +59,10 @@ export async function apiGet(path: string) {
       clearToken();
       throw new Error('Authentication required');
     }
+    if (axios.isAxiosError(error) && error.response?.status === 503) {
+      const retryAfter = error.response?.data?.retryAfter || 5;
+      throw new Error(`Database connection error. Please try again in ${retryAfter} seconds.`);
+    }
     throw error;
   }
 }
@@ -72,6 +78,10 @@ export async function apiPost<T = unknown>(path: string, data: T) {
       // Clear invalid token
       clearToken();
       throw new Error('Authentication required');
+    }
+    if (axios.isAxiosError(error) && error.response?.status === 503) {
+      const retryAfter = error.response?.data?.retryAfter || 5;
+      throw new Error(`Database connection error. Please try again in ${retryAfter} seconds.`);
     }
     throw error;
   }
@@ -89,6 +99,10 @@ export async function apiPut<T = unknown>(path: string, data: T) {
       clearToken();
       throw new Error('Authentication required');
     }
+    if (axios.isAxiosError(error) && error.response?.status === 503) {
+      const retryAfter = error.response?.data?.retryAfter || 5;
+      throw new Error(`Database connection error. Please try again in ${retryAfter} seconds.`);
+    }
     throw error;
   }
 }
@@ -104,6 +118,10 @@ export async function apiDelete(path: string) {
       // Clear invalid token
       clearToken();
       throw new Error('Authentication required');
+    }
+    if (axios.isAxiosError(error) && error.response?.status === 503) {
+      const retryAfter = error.response?.data?.retryAfter || 5;
+      throw new Error(`Database connection error. Please try again in ${retryAfter} seconds.`);
     }
     throw error;
   }
