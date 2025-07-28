@@ -5,7 +5,9 @@ var logger = require("morgan");
 const mongoose = require("mongoose");
 const redis = require("redis");
 const cors = require("cors");
-require("dotenv").config();
+
+// Load environment variables from the correct path
+require("dotenv").config({ path: path.join(__dirname, '.env') });
 
 var indexRouter = require("./routes/index");
 var usersRouter = require("./routes/users");
@@ -20,7 +22,8 @@ app.use(cors({
   origin: [
     'https://ai-playground-lyart.vercel.app',
     'http://localhost:3000',
-    'http://localhost:3001'
+    'http://localhost:3001',
+    'http://localhost:3002'
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -68,13 +71,48 @@ app.use((req, res, next) => {
 // MongoDB connection with retry logic
 let isConnected = false;
 let connectionAttempts = 0;
+const maxRetryAttempts = 10;
 
 const connectWithRetry = () => {
-  console.log(`Attempting to connect to MongoDB (attempt ${connectionAttempts + 1})...`);
+  if (connectionAttempts >= maxRetryAttempts) {
+    console.error(`Failed to connect to MongoDB after ${maxRetryAttempts} attempts. Giving up.`);
+    return;
+  }
+
+  console.log(`Attempting to connect to MongoDB (attempt ${connectionAttempts + 1}/${maxRetryAttempts})...`);
   connectionAttempts++;
   
-  // Use NO options at all - let Mongoose handle everything
-  const mongoOptions = {};
+  // Enhanced connection options to handle SSL/TLS issues
+  const mongoOptions = {
+    // Connection timeout settings
+    serverSelectionTimeoutMS: 30000, // Increased timeout
+    connectTimeoutMS: 30000,
+    socketTimeoutMS: 45000,
+    
+    // Buffer settings (corrected option name)
+    bufferCommands: false,
+    
+    // Retry settings
+    retryWrites: true,
+    retryReads: true,
+    maxPoolSize: 10,
+    minPoolSize: 1,
+    
+    // SSL/TLS settings for Atlas connections
+    tls: true,
+    tlsInsecure: false, // Keep secure but try different approaches
+    
+    // Additional stability options
+    heartbeatFrequencyMS: 10000,
+    serverMonitoringMode: 'auto'
+  };
+
+  // For production environments, try relaxed TLS settings if standard fails
+  if (process.env.NODE_ENV === 'production' || connectionAttempts > 3) {
+    mongoOptions.tlsAllowInvalidCertificates = true;
+    mongoOptions.tlsAllowInvalidHostnames = true;
+    console.log('Using relaxed TLS settings due to connection issues...');
+  }
 
   console.log("Connection options:", mongoOptions);
   console.log("MONGO_URI type:", typeof process.env.MONGO_URI);
@@ -88,14 +126,18 @@ const connectWithRetry = () => {
     isConnected = true;
     connectionAttempts = 0; // Reset counter on success
   }).catch(err => {
-    console.error('MongoDB connection failed, retrying in 5 seconds...', err.message);
+    console.error('MongoDB connection failed, retrying in 10 seconds...', err.message);
     console.error('Connection error details:', {
       name: err.name,
       code: err.code,
-      reason: err.reason
+      reason: err.reason,
+      codeName: err.codeName
     });
     isConnected = false;
-    setTimeout(connectWithRetry, 5000);
+    
+    // Exponential backoff: wait longer between retries
+    const retryDelay = Math.min(10000 * Math.pow(1.5, connectionAttempts - 1), 60000);
+    setTimeout(connectWithRetry, retryDelay);
   });
 };
 

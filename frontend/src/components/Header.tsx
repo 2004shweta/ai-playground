@@ -2,13 +2,40 @@
 import HomeIcon from "@mui/icons-material/Home";
 import PlayCircleFilledWhiteIcon from "@mui/icons-material/PlayCircleFilledWhite";
 import AdbIcon from "@mui/icons-material/Adb";
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useAuth } from "./AuthProvider";
 import LogoutIcon from "@mui/icons-material/Logout";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 export default function Header() {
   const { isLoggedIn, logout } = useAuth();
+  const pathname = usePathname();
+  const isPlaygroundPage = pathname === "/playground";
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  // Calculate dynamic margin based on whether we're on playground page and screen size
+  const getLogoMargin = () => {
+    if (isPlaygroundPage && isMobile) {
+      return "90px"; // Extra space for menu button on mobile playground
+    } else if (isPlaygroundPage) {
+      return "80px"; // Space for menu button on desktop playground
+    } else if (isMobile) {
+      return "20px"; // Normal mobile margin
+    }
+    return "32px"; // Normal desktop margin
+  };
+
   return (
     <header
       style={{
@@ -36,19 +63,26 @@ export default function Header() {
           display: "flex",
           alignItems: "center",
           fontWeight: 800,
-          fontSize: 24,
+          fontSize: isMobile ? "20px" : "24px",
           color: "var(--foreground)",
           textDecoration: "none",
-          marginLeft: 32,
+          marginLeft: getLogoMargin(),
           gap: 10,
           letterSpacing: 0.5,
+          transition: "margin-left 0.2s ease",
         }}
       >
-        <AdbIcon sx={{ fontSize: 32, color: "var(--accent)" }} />
-        AI Playground
+        <AdbIcon sx={{ fontSize: isMobile ? 28 : 32, color: "var(--accent)" }} />
+        {isMobile ? "AI Play" : "AI Playground"}
       </a>
       <nav
-        style={{ marginRight: 32, display: "flex", gap: 24 }}
+        style={{ 
+          marginRight: isMobile ? "16px" : "32px",
+          display: "flex", 
+          gap: isMobile ? "12px" : "24px",
+          flexWrap: "nowrap",
+          alignItems: "center"
+        }}
         aria-label="Main navigation"
       >
         <Link
@@ -59,17 +93,19 @@ export default function Header() {
             fontWeight: 600,
             display: "flex",
             alignItems: "center",
-            gap: 6,
+            gap: isMobile ? 4 : 6,
             transition: "color 0.2s",
-            padding: "6px 12px",
+            padding: isMobile ? "4px 8px" : "6px 12px",
             borderRadius: 8,
+            fontSize: isMobile ? "14px" : "16px",
           }}
           onMouseOver={(e) =>
             (e.currentTarget.style.background = "rgba(25,118,210,0.08)")
           }
           onMouseOut={(e) => (e.currentTarget.style.background = "transparent")}
         >
-          <HomeIcon sx={{ fontSize: 22, color: "var(--accent)" }} /> Home
+          <HomeIcon sx={{ fontSize: isMobile ? 18 : 22, color: "var(--accent)" }} /> 
+          {!isMobile && "Home"}
         </Link>
         <a
           href="/playground"
@@ -79,10 +115,11 @@ export default function Header() {
             fontWeight: 600,
             display: "flex",
             alignItems: "center",
-            gap: 6,
+            gap: isMobile ? 4 : 6,
             transition: "color 0.2s",
-            padding: "6px 12px",
+            padding: isMobile ? "4px 8px" : "6px 12px",
             borderRadius: 8,
+            fontSize: isMobile ? "14px" : "16px",
           }}
           onMouseOver={(e) =>
             (e.currentTarget.style.background = "rgba(25,118,210,0.08)")
@@ -90,9 +127,9 @@ export default function Header() {
           onMouseOut={(e) => (e.currentTarget.style.background = "transparent")}
         >
           <PlayCircleFilledWhiteIcon
-            sx={{ fontSize: 22, color: "var(--accent)" }}
-          />{" "}
-          Playground
+            sx={{ fontSize: isMobile ? 18 : 22, color: "var(--accent)" }}
+          />
+          {!isMobile && "Playground"}
         </a>
         {isLoggedIn ? (
           <button
@@ -104,10 +141,10 @@ export default function Header() {
               fontWeight: 600,
               display: "flex",
               alignItems: "center",
-              gap: 6,
+              gap: isMobile ? 4 : 6,
               cursor: "pointer",
-              fontSize: 16,
-              padding: "6px 12px",
+              fontSize: isMobile ? "14px" : "16px",
+              padding: isMobile ? "4px 8px" : "6px 12px",
               borderRadius: 8,
               transition: "background 0.2s",
             }}
@@ -118,7 +155,8 @@ export default function Header() {
               (e.currentTarget.style.background = "transparent")
             }
           >
-            <LogoutIcon sx={{ fontSize: 22, color: "var(--accent)" }} /> Logout
+            <LogoutIcon sx={{ fontSize: isMobile ? 18 : 22, color: "var(--accent)" }} /> 
+            {!isMobile && "Logout"}
           </button>
         ) : null}
       </nav>

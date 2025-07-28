@@ -27,6 +27,7 @@ import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
 import PersonIcon from "@mui/icons-material/Person";
 import SmartToyIcon from "@mui/icons-material/SmartToy";
 import SendIcon from "@mui/icons-material/Send";
+import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
 import { apiGet, apiPost, apiPut, apiDelete } from "../../utils/api";
 import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
 
@@ -63,6 +64,7 @@ export default function PlaygroundPage() {
   const [sessionName, setSessionName] = useState("");
   const [sessionLoading, setSessionLoading] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showScrollTop, setShowScrollTop] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   // 1. Replace buttonProps with elements state
   type ButtonElement = {
@@ -272,6 +274,62 @@ export default function PlaygroundPage() {
     if (!isLoggedIn) router.replace("/login");
   }, [isLoggedIn, router]);
 
+  // Scroll to top when component mounts (when navigating to playground page)
+  useEffect(() => {
+    // Force scroll to top immediately without animation first
+    window.scrollTo(0, 0);
+    // Then use smooth scrolling
+    setTimeout(() => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }, 100);
+  }, []);
+
+  // Handle scroll to show/hide scroll-to-top button - check for container scroll instead
+  useEffect(() => {
+    const handleScroll = () => {
+      // Check both window scroll and any scrollable containers
+      const windowScroll = window.scrollY;
+      const chatContainer = document.querySelector('.playground-chat .MuiList-root');
+      const codeContainer = document.querySelector('.playground-main .MuiPaper-root');
+      
+      let shouldShow = windowScroll > 100;
+      
+      // Also check if any internal containers are scrolled
+      if (chatContainer && chatContainer.scrollTop > 100) {
+        shouldShow = true;
+      }
+      if (codeContainer && codeContainer.scrollTop > 100) {
+        shouldShow = true;
+      }
+      
+      setShowScrollTop(shouldShow);
+    };
+
+    // Listen to window scroll
+    window.addEventListener('scroll', handleScroll);
+    
+    // Also listen to scroll events on internal containers
+    const chatContainer = document.querySelector('.playground-chat .MuiList-root');
+    const codeContainer = document.querySelector('.playground-main .MuiPaper-root');
+    
+    if (chatContainer) {
+      chatContainer.addEventListener('scroll', handleScroll);
+    }
+    if (codeContainer) {
+      codeContainer.addEventListener('scroll', handleScroll);
+    }
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      if (chatContainer) {
+        chatContainer.removeEventListener('scroll', handleScroll);
+      }
+      if (codeContainer) {
+        codeContainer.removeEventListener('scroll', handleScroll);
+      }
+    };
+  }, []);
+
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
     if (!loading) inputRef.current?.focus();
@@ -351,24 +409,68 @@ export default function PlaygroundPage() {
     URL.revokeObjectURL(url);
   };
 
+  const scrollToTop = () => {
+    // Scroll window to top
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    
+    // Also scroll internal containers to top
+    const chatContainer = document.querySelector('.playground-chat .MuiList-root');
+    const codeContainer = document.querySelector('.playground-main .MuiPaper-root');
+    
+    if (chatContainer) {
+      chatContainer.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    if (codeContainer) {
+      codeContainer.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
   return (
     <Box
       display="flex"
-      height="100vh"
+      minHeight="100vh"
       bgcolor="var(--background)"
+      className="playground-container"
       sx={{
         background: "linear-gradient(135deg, #f8fafc 0%, #e3f0fd 100%)",
-        minHeight: "100vh",
-        padding: { xs: 1, md: 3 },
-        gap: 3,
+        padding: { xs: 1, md: 2 },
+        gap: { xs: 1, md: 2 },
+        position: "relative",
+        flexDirection: { xs: "column", md: "row" }
       }}
     >
       <IconButton
         onClick={() => setDrawerOpen(true)}
-        sx={{ position: "absolute", top: 8, left: 8 }}
+        sx={{ 
+          position: "fixed", 
+          top: { xs: 8, sm: 8 }, 
+          left: { xs: 20, sm: 24 }, 
+          zIndex: 1300,
+          bgcolor: "rgba(255,255,255,0.95)",
+          backdropFilter: "blur(12px)",
+          boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+          border: "1px solid rgba(25,118,210,0.1)",
+          borderRadius: "50%",
+          width: { xs: 46, sm: 50 },
+          height: { xs: 46, sm: 50 },
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          "&:hover": {
+            bgcolor: "rgba(255,255,255,1)",
+            boxShadow: "0 6px 20px rgba(0,0,0,0.2)",
+            transform: "translateY(-1px)",
+            borderColor: "rgba(25,118,210,0.2)"
+          },
+          "&:active": {
+            transform: "translateY(0px)",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.15)"
+          },
+          transition: "all 0.2s ease-in-out"
+        }}
         aria-label="Open session drawer"
       >
-        <MenuIcon />
+        <MenuIcon sx={{ fontSize: { xs: 22, sm: 24 }, color: "var(--accent)" }} />
       </IconButton>
       <Drawer
         anchor="left"
@@ -384,7 +486,7 @@ export default function PlaygroundPage() {
         }}
       >
         <Box
-          width={320}
+          width={{ xs: 280, sm: 320 }}
           minHeight="100vh"
           p={0}
           sx={{
@@ -526,20 +628,24 @@ export default function PlaygroundPage() {
       {/* Sidebar Chat */}
       <Paper
         elevation={3}
+        className="playground-chat"
         sx={{
-          width: 360,
+          width: { xs: "100%", md: 380 },
+          minWidth: { xs: "100%", md: 320 },
+          maxWidth: { xs: "100%", md: 400 },
           p: 0,
           display: "flex",
           flexDirection: "column",
-          borderRadius: "24px",
+          borderRadius: { xs: "12px", md: "20px" },
           boxShadow: "0 8px 32px rgba(25,118,210,0.13)",
           bgcolor: "#fff",
-          m: 3,
-          minHeight: "calc(100vh - 48px)",
-          maxHeight: "calc(100vh - 48px)",
+          height: { xs: "80vh", md: "90vh" },
+          minHeight: { xs: "600px", md: "700px" },
           overflow: "hidden",
           animation: "fadeInChat 0.7s",
           transition: "box-shadow 0.3s",
+          position: "relative",
+          zIndex: 1
         }}
       >
         <Box px={4} py={3} borderBottom="1px solid #f0f0f0" bgcolor="#f8fafc">
@@ -593,11 +699,21 @@ export default function PlaygroundPage() {
           sx={{
             flex: 1,
             overflowY: "auto",
-            px: 3,
+            px: 2,
             py: 2,
             bgcolor: "#f8fafc",
             borderRadius: 0,
             mb: 0,
+            "&::-webkit-scrollbar": {
+              width: "6px"
+            },
+            "&::-webkit-scrollbar-track": {
+              background: "transparent"
+            },
+            "&::-webkit-scrollbar-thumb": {
+              background: "#c1c1c1",
+              borderRadius: "3px"
+            }
           }}
           aria-live="polite"
         >
@@ -619,8 +735,8 @@ export default function PlaygroundPage() {
                   transition: "background 0.2s",
                 }}
               >
-                <Box display="flex" alignItems="flex-start" width="100%">
-                  <Box mr={2} mt={msg.role === "ai" ? 0.5 : 0}>
+                <Box display="flex" alignItems="flex-start" width="100%" gap={1}>
+                  <Box mt={msg.role === "ai" ? 0.5 : 0} sx={{ flexShrink: 0 }}>
                     <Avatar
                       sx={{
                         bgcolor:
@@ -653,14 +769,23 @@ export default function PlaygroundPage() {
                           ? "16px 16px 16px 4px"
                           : "16px 16px 4px 16px",
                       boxShadow: "0 1px 4px rgba(25,118,210,0.04)",
-                      maxWidth: "80%",
+                      flex: 1,
+                      minWidth: 0,
                       wordBreak: "break-word",
+                      overflowWrap: "break-word",
+                      whiteSpace: "pre-wrap",
                       transition: "background 0.2s, box-shadow 0.2s",
                     }}
                   >
                     <Typography
-                      fontSize={15}
+                      fontSize={14}
                       fontWeight={msg.role === "ai" ? 500 : 600}
+                      sx={{
+                        lineHeight: 1.5,
+                        wordBreak: "break-word",
+                        overflowWrap: "break-word",
+                        whiteSpace: "pre-wrap"
+                      }}
                     >
                       {msg.content}
                     </Typography>
@@ -676,8 +801,18 @@ export default function PlaygroundPage() {
           )}
           <div ref={chatEndRef} />
         </List>
-        <Divider sx={{ my: 0 }} />
-        <Box px={3} py={2} bgcolor="#f8fafc" borderTop="1px solid #f0f0f0">
+        <Divider sx={{ my: 0, borderColor: "#e0e0e0" }} />
+        <Box 
+          px={2} 
+          py={2} 
+          bgcolor="#f8fafc" 
+          borderTop="1px solid #f0f0f0"
+          sx={{
+            minHeight: "72px",
+            display: "flex",
+            alignItems: "center"
+          }}
+        >
           <Box display="flex" gap={1} alignItems="center">
             <TextField
               value={input}
@@ -739,21 +874,32 @@ export default function PlaygroundPage() {
         flexDirection="column"
         bgcolor="#fafbfc"
         minWidth={0}
+        className="playground-main"
         sx={{
-          borderRadius: "24px",
+          borderRadius: { xs: "12px", md: "20px" },
           boxShadow: "0 4px 24px rgba(25,118,210,0.08)",
-          margin: 3,
-          padding: 3,
+          padding: { xs: 2, md: 3 },
           transition: "box-shadow 0.3s",
+          height: { xs: "80vh", md: "90vh" },
+          minHeight: { xs: "600px", md: "700px" },
+          overflow: "hidden",
+          position: "relative"
         }}
       >
         {/* Code Tabs */}
-        <Box>
+        <Box sx={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
           <Tabs
             value={tab}
             onChange={(_, v) => setTab(v)}
             aria-label="Code tabs"
-            sx={{ mb: 1 }}
+            sx={{ 
+              mb: 1,
+              minHeight: "48px",
+              "& .MuiTab-root": {
+                fontSize: "14px",
+                fontWeight: 600
+              }
+            }}
           >
             <Tab label="JSX/TSX" />
             <Tab label="CSS" />
@@ -764,19 +910,41 @@ export default function PlaygroundPage() {
               p: 2,
               bgcolor: "#f8fafc",
               color: "#222831",
-              minHeight: 120,
-              borderRadius: 0,
+              flex: 1,
+              borderRadius: "12px",
               fontFamily: "monospace",
               boxShadow: "0 1px 4px rgba(25,118,210,0.04)",
+              overflow: "auto",
+              border: "1px solid #e0e0e0",
+              "&::-webkit-scrollbar": {
+                width: "8px",
+                height: "8px"
+              },
+              "&::-webkit-scrollbar-track": {
+                background: "#f1f1f1",
+                borderRadius: "4px"
+              },
+              "&::-webkit-scrollbar-thumb": {
+                background: "#c1c1c1",
+                borderRadius: "4px"
+              },
+              "&::-webkit-scrollbar-thumb:hover": {
+                background: "#a1a1a1"
+              }
             }}
           >
             {tab === 0 ? (
               <pre
                 style={{
                   margin: 0,
-                  fontFamily: "monospace",
+                  fontFamily: "'Fira Code', 'Monaco', 'Menlo', monospace",
                   background: "none",
                   color: "inherit",
+                  fontSize: "13px",
+                  lineHeight: "1.5",
+                  whiteSpace: "pre-wrap",
+                  wordBreak: "break-word",
+                  overflowWrap: "break-word"
                 }}
               >
                 {jsx}
@@ -785,9 +953,14 @@ export default function PlaygroundPage() {
               <pre
                 style={{
                   margin: 0,
-                  fontFamily: "monospace",
+                  fontFamily: "'Fira Code', 'Monaco', 'Menlo', monospace",
                   background: "none",
                   color: "inherit",
+                  fontSize: "13px",
+                  lineHeight: "1.5",
+                  whiteSpace: "pre-wrap",
+                  wordBreak: "break-word",
+                  overflowWrap: "break-word"
                 }}
               >
                 {css}
@@ -795,7 +968,17 @@ export default function PlaygroundPage() {
             )}
           </Paper>
         </Box>
-        <Box display="flex" gap={2} mt={1} mb={2}>
+        <Box 
+          display="flex" 
+          gap={2} 
+          mt={2} 
+          sx={{
+            flexShrink: 0,
+            borderTop: "1px solid #e0e0e0",
+            pt: 2,
+            flexDirection: { xs: "column", sm: "row" }
+          }}
+        >
           <Button
             variant="outlined"
             size="small"
@@ -829,6 +1012,37 @@ export default function PlaygroundPage() {
           </Button>
         </Box>
       </Box>
+
+      {/* Floating Scroll to Top Button */}
+      {showScrollTop && (
+        <IconButton
+          onClick={scrollToTop}
+          sx={{
+            position: "fixed",
+            bottom: { xs: 24, sm: 32 },
+            right: { xs: 24, sm: 32 },
+            zIndex: 1200,
+            bgcolor: "var(--accent)",
+            color: "#fff",
+            width: { xs: 48, sm: 56 },
+            height: { xs: 48, sm: 56 },
+            boxShadow: "0 4px 16px rgba(25,118,210,0.3)",
+            "&:hover": {
+              bgcolor: "var(--accent-hover)",
+              boxShadow: "0 6px 20px rgba(25,118,210,0.4)",
+              transform: "translateY(-2px)"
+            },
+            "&:active": {
+              transform: "translateY(0px)"
+            },
+            transition: "all 0.2s ease-in-out",
+            animation: "fadeInUp 0.3s ease-out"
+          }}
+          aria-label="Scroll to top"
+        >
+          <KeyboardArrowUpIcon sx={{ fontSize: { xs: 24, sm: 28 } }} />
+        </IconButton>
+      )}
     </Box>
   );
 }
