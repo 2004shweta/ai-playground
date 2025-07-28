@@ -4,9 +4,12 @@
   "private": true,
   "scripts": {
     "start": "node ./bin/www",
+    "start-simple": "node ./bin/www-simple",
     "test-db": "node test-db.js",
     "test-connection": "node test-connection.js",
-    "debug-env": "node debug-env.js"
+    "test-simple": "node test-simple-connection.js",
+    "debug-env": "node debug-env.js",
+    "analyze": "node analyze-issue.js"
   },
   "dependencies": {
     "axios": "^1.11.0",
@@ -21,6 +24,7 @@
     "ioredis": "^5.6.1",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.16.4",
+    "mongodb": "^6.3.0",
     "morgan": "~1.9.1",
     "redis": "^5.6.1"
   }

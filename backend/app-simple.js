@@ -54,7 +54,7 @@ app.use((req, res, next) => {
   }
   
   // Check if MongoDB is connected
-  if (!isConnected && mongoose.connection.readyState !== 1) {
+  if (mongoose.connection.readyState !== 1) {
     console.log(`Database not ready. State: ${mongoose.connection.readyState}`);
     return res.status(503).json({ 
       error: "Database connection not ready. Please try again in a few moments.",
@@ -65,58 +65,28 @@ app.use((req, res, next) => {
   next();
 });
 
-// MongoDB connection with retry logic
-let isConnected = false;
-let connectionAttempts = 0;
+// SIMPLE MongoDB connection - NO OPTIONS AT ALL
+console.log('Attempting to connect to MongoDB...');
+console.log('MONGO_URI:', process.env.MONGO_URI ? 'SET' : 'NOT SET');
 
-const connectWithRetry = () => {
-  console.log(`Attempting to connect to MongoDB (attempt ${connectionAttempts + 1})...`);
-  connectionAttempts++;
-  
-  // Use NO options at all - let Mongoose handle everything
-  const mongoOptions = {};
-
-  console.log("Connection options:", mongoOptions);
-  console.log("MONGO_URI type:", typeof process.env.MONGO_URI);
-  console.log("MONGO_URI length:", process.env.MONGO_URI ? process.env.MONGO_URI.length : 0);
-
-  mongoose.connect(
-    process.env.MONGO_URI || "mongodb://localhost:27017/ai-playground",
-    mongoOptions,
-  ).then(() => {
-    console.log('MongoDB connection successful!');
-    isConnected = true;
-    connectionAttempts = 0; // Reset counter on success
-  }).catch(err => {
-    console.error('MongoDB connection failed, retrying in 5 seconds...', err.message);
-    console.error('Connection error details:', {
-      name: err.name,
-      code: err.code,
-      reason: err.reason
-    });
-    isConnected = false;
-    setTimeout(connectWithRetry, 5000);
+mongoose.connect(process.env.MONGO_URI || "mongodb://localhost:27017/ai-playground")
+  .then(() => {
+    console.log('MongoDB connected successfully!');
+  })
+  .catch(err => {
+    console.error('MongoDB connection failed:', err.message);
   });
-};
 
-connectWithRetry();
 mongoose.connection.on("connected", () => {
   console.log("MongoDB connected successfully");
-  isConnected = true;
 });
+
 mongoose.connection.on("error", (err) => {
   console.error("MongoDB connection error:", err);
-  console.error("Error details:", {
-    name: err.name,
-    message: err.message,
-    code: err.code,
-    reason: err.reason
-  });
-  isConnected = false;
 });
+
 mongoose.connection.on("disconnected", () => {
   console.log("MongoDB disconnected");
-  isConnected = false;
 });
 
 // Redis connection with retry logic
@@ -181,4 +151,4 @@ app.use((req, res) => {
   res.status(404).json({ error: "Route not found" });
 });
 
-module.exports = app;
+module.exports = app; 
