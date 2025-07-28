@@ -13,7 +13,8 @@
     "quick-test": "node quick-test.js",
     "health-check": "node health-check.js",
     "render-fix": "node render-fix.js",
-    "strategy-test": "node strategy-test.js"
+    "strategy-test": "node strategy-test.js",
+    "ip-diagnostic": "node ip-diagnostic.js"
   },
   "dependencies": {
     "axios": "^1.11.0",
