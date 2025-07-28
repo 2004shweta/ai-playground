@@ -37,35 +37,97 @@ app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, "public")));
 
-// MongoDB connection
-mongoose.connect(
-  process.env.MONGO_URI || "mongodb://localhost:27017/ai-playground",
-  {
+// MongoDB connection with retry logic
+const connectWithRetry = () => {
+  console.log('Attempting to connect to MongoDB...');
+  const mongoOptions = {
     useNewUrlParser: true,
     useUnifiedTopology: true,
-  },
-);
+    retryWrites: true,
+    w: 'majority',
+    serverSelectionTimeoutMS: 10000,
+    socketTimeoutMS: 45000,
+    maxPoolSize: 10,
+    minPoolSize: 1,
+  };
+
+  // Add SSL options only if connecting to MongoDB Atlas (cloud)
+  if (process.env.MONGO_URI && process.env.MONGO_URI.includes('mongodb.net')) {
+    mongoOptions.ssl = true;
+    mongoOptions.sslValidate = false;
+    mongoOptions.tlsAllowInvalidCertificates = true;
+    mongoOptions.tlsAllowInvalidHostnames = true;
+  }
+
+  mongoose.connect(
+    process.env.MONGO_URI || "mongodb://localhost:27017/ai-playground",
+    mongoOptions,
+  ).catch(err => {
+    console.error('MongoDB connection failed, retrying in 5 seconds...', err.message);
+    console.error('Connection error details:', {
+      name: err.name,
+      code: err.code,
+      reason: err.reason
+    });
+    setTimeout(connectWithRetry, 5000);
+  });
+};
+
+connectWithRetry();
 mongoose.connection.on("connected", () => {
-  console.log("MongoDB connected");
+  console.log("MongoDB connected successfully");
 });
 mongoose.connection.on("error", (err) => {
   console.error("MongoDB connection error:", err);
+  console.error("Error details:", {
+    name: err.name,
+    message: err.message,
+    code: err.code,
+    reason: err.reason
+  });
+});
+mongoose.connection.on("disconnected", () => {
+  console.log("MongoDB disconnected");
 });
 
-// Redis connection
+// Redis connection with retry logic
 console.log("Using Redis URL:", process.env.REDIS_URL);
 const redisClient = redis.createClient({
   url: process.env.REDIS_URL,
   socket: {
     tls: process.env.REDIS_URL && process.env.REDIS_URL.startsWith("rediss://"),
+    connectTimeout: 10000,
+    lazyConnect: true,
   },
+  retry_strategy: function(options) {
+    if (options.error && options.error.code === 'ECONNREFUSED') {
+      console.error('Redis server refused connection');
+      return new Error('Redis server refused connection');
+    }
+    if (options.total_retry_time > 1000 * 60 * 60) {
+      console.error('Redis retry time exhausted');
+      return new Error('Retry time exhausted');
+    }
+    if (options.attempt > 10) {
+      console.error('Redis max retry attempts reached');
+      return undefined;
+    }
+    return Math.min(options.attempt * 100, 3000);
+  }
 });
-redisClient
-  .connect()
-  .then(() => {
-    console.log("Redis connected");
-  })
-  .catch(console.error);
+
+const connectRedis = async () => {
+  try {
+    await redisClient.connect();
+    console.log("Redis connected successfully");
+  } catch (error) {
+    console.error("Redis connection failed:", error.message);
+    // Retry Redis connection after 5 seconds
+    setTimeout(connectRedis, 5000);
+  }
+};
+
+connectRedis();
 
 app.set("redisClient", redisClient);
 

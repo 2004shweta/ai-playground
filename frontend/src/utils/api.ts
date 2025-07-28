@@ -19,13 +19,27 @@ export function clearToken() {
 }
 
 export async function signup(email: string, password: string) {
-  const res = await axios.post(`${API_URL}/auth/signup`, { email, password });
-  return res.data;
+  try {
+    const res = await axios.post(`${API_URL}/auth/signup`, { email, password });
+    return res.data;
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response?.status === 503) {
+      throw new Error('Database connection error. Please try again in a few moments.');
+    }
+    throw error;
+  }
 }
 
 export async function login(email: string, password: string) {
-  const res = await axios.post(`${API_URL}/auth/login`, { email, password });
-  return res.data;
+  try {
+    const res = await axios.post(`${API_URL}/auth/login`, { email, password });
+    return res.data;
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response?.status === 503) {
+      throw new Error('Database connection error. Please try again in a few moments.');
+    }
+    throw error;
+  }
 }
 
 function authHeaders() {

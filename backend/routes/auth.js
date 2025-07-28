@@ -17,6 +17,10 @@ router.post("/signup", async (req, res) => {
     const user = await User.create({ email, password: hash });
     res.json({ success: true });
   } catch (err) {
+    console.error("Signup error:", err);
+    if (err.name === 'MongoNetworkError' || err.name === 'MongoServerSelectionError') {
+      return res.status(503).json({ error: "Database connection error. Please try again." });
+    }
     res.status(500).json({ error: "Server error" });
   }
 });
@@ -38,6 +42,10 @@ router.post("/login", async (req, res) => {
     );
     res.json({ token });
   } catch (err) {
+    console.error("Login error:", err);
+    if (err.name === 'MongoNetworkError' || err.name === 'MongoServerSelectionError') {
+      return res.status(503).json({ error: "Database connection error. Please try again." });
+    }
     res.status(500).json({ error: "Server error" });
   }
 });
