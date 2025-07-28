@@ -121,9 +121,9 @@ const connectWithRetry = () => {
     
     // Render.com specific SSL/TLS optimizations
     if (isRenderPlatform || connectionAttempts > 2) {
+      // Use either tlsInsecure OR tlsAllowInvalidCertificates, not both
       mongoOptions.tlsAllowInvalidCertificates = true;
       mongoOptions.tlsAllowInvalidHostnames = true;
-      mongoOptions.tlsInsecure = true;
       mongoOptions.authSource = 'admin';
       console.log('Using cloud platform optimized SSL settings...');
     }
@@ -143,11 +143,16 @@ const connectWithRetry = () => {
     console.log('Attempting alternative connection method for Render.com...');
     mongoOptions = {
       ...mongoOptions,
-      ssl: false, // Try without SSL for problematic environments
-      tls: false,
+      tls: false, // Disable TLS entirely for this fallback
+      ssl: false,
       useUnifiedTopology: true,
       useNewUrlParser: true
     };
+    
+    // Remove conflicting SSL options
+    delete mongoOptions.tlsAllowInvalidCertificates;
+    delete mongoOptions.tlsAllowInvalidHostnames;
+    delete mongoOptions.tlsInsecure;
     
     // Note: This fallback may not work with Atlas clusters that require SSL
     // But we'll try it as a last resort for Render.com TLS issues

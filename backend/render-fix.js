@@ -41,22 +41,19 @@ async function testRenderConnection() {
         tls: true,
         tlsAllowInvalidCertificates: true,
         tlsAllowInvalidHostnames: true,
-        tlsInsecure: true,
         authSource: 'admin',
         retryWrites: true
       }
     },
     {
-      name: "Render.com Alternative (Relaxed)",
+      name: "Render.com Alternative (Legacy SSL)",
       options: {
         serverSelectionTimeoutMS: 20000,
         connectTimeoutMS: 20000,
-        tls: true,
-        tlsAllowInvalidCertificates: true,
-        tlsAllowInvalidHostnames: true,
         ssl: true,
         sslValidate: false,
-        authSource: 'admin'
+        authSource: 'admin',
+        retryWrites: true
       }
     }
   ];
